@@ -492,6 +492,38 @@ audio,video{
  .buttons button{min-width:30%;font-size:11px;padding:10px 5px}
 }
 </style>
+
+<style id="jon-tv-friendly-style">
+/* JON STREAM TV FRIENDLY MODE — additive; mobile styles remain unchanged */
+body.jon-tv-mode{min-width:960px;overflow-x:hidden}
+body.jon-tv-mode .container{max-width:1680px;padding:28px 42px 40px}
+body.jon-tv-mode .mode-switch{gap:16px;margin-bottom:24px}
+body.jon-tv-mode .mode-switch button{min-height:68px;font-size:21px;border-radius:17px}
+body.jon-tv-mode .time-panel{gap:18px}
+body.jon-tv-mode .time-card{padding:18px;border-radius:20px}
+body.jon-tv-mode .time-card .time{font-size:27px}
+body.jon-tv-mode .featured{padding:24px;border-radius:24px}
+body.jon-tv-mode .featured button{min-height:60px;font-size:18px}
+body.jon-tv-mode .section-head h2{font-size:28px}
+body.jon-tv-mode .player,body.jon-tv-mode .tv-player-box{padding:24px;border-radius:24px}
+body.jon-tv-mode .tv-search input,body.jon-tv-mode .search input,body.jon-tv-mode .country-select{min-height:58px;font-size:18px}
+body.jon-tv-mode .tv-filter-row{gap:12px}
+body.jon-tv-mode .tv-filter-row button{min-height:54px;font-size:16px}
+body.jon-tv-mode .tv-card{min-height:82px;padding:14px;border-radius:18px;gap:14px}
+body.jon-tv-mode .tv-name{font-size:19px}
+body.jon-tv-mode .tv-country{font-size:14px}
+body.jon-tv-mode .tv-play,body.jon-tv-mode .tv-favorite{width:60px;height:56px;font-size:22px}
+body.jon-tv-mode .tv-logo{width:64px;height:64px}
+body.jon-tv-mode .tv-player-box video{min-height:520px;max-height:70vh}
+body.jon-tv-mode .tv-controls{grid-template-columns:repeat(5,1fr);gap:12px}
+body.jon-tv-mode .tv-controls button,body.jon-tv-mode .advanced-controls button{min-height:58px;font-size:16px}
+body.jon-tv-mode .advanced-controls{gap:12px}
+body.jon-tv-mode :focus{outline:3px solid #ffd84d!important;outline-offset:4px!important}
+body.jon-tv-mode button:focus,body.jon-tv-mode a:focus,body.jon-tv-mode input:focus,body.jon-tv-mode select:focus{box-shadow:0 0 0 5px rgba(255,216,77,.22),0 8px 24px rgba(0,0,0,.28);transform:scale(1.025)}
+body.jon-tv-mode .tv-card:focus{border-color:#ffd84d;box-shadow:0 0 0 4px rgba(255,216,77,.22),0 10px 28px rgba(0,0,0,.28)}
+#jonTVRemoteHint{display:none}
+body.jon-tv-mode #jonTVRemoteHint{display:block;margin:0 0 18px;padding:12px 16px;border:1px solid var(--border);border-radius:14px;background:var(--card2);color:var(--muted);text-align:center;font-size:14px;font-weight:700}
+</style>
 </head>
 
 <body>
@@ -1716,6 +1748,80 @@ loadTV();
 
   window.addEventListener('jon-firebase-data',(event)=>syncFirebaseData(event.detail));
   if(window.__JON_FIREBASE_DATA) syncFirebaseData(window.__JON_FIREBASE_DATA);
+})();
+</script>
+
+<script id="jon-tv-remote-navigation">
+(function(){
+  'use strict';
+  var ua=navigator.userAgent||'';
+  var isTV=/Tizen|SMART-TV|SmartTV|webOS|Web0S|NetCast/i.test(ua);
+  if(!isTV)return;
+  document.body.classList.add('jon-tv-mode');
+
+  var hint=document.createElement('div');
+  hint.id='jonTVRemoteHint';
+  hint.textContent='◀ ▲ ▼ ▶  Navigate   •   OK / ENTER  Select   •   BACK / RETURN  Back';
+  var container=document.querySelector('.container');
+  var mode=document.querySelector('.mode-switch');
+  if(container&&mode)container.insertBefore(hint,mode);
+
+  function visible(el){
+    if(!el||!el.isConnected||el.disabled)return false;
+    var st=getComputedStyle(el),r=el.getBoundingClientRect();
+    return st.display!=='none'&&st.visibility!=='hidden'&&r.width>0&&r.height>0&&el.getAttribute('aria-hidden')!=='true';
+  }
+  function items(){
+    return Array.prototype.slice.call(document.querySelectorAll('button,a[href],input,select,textarea,[tabindex="0"]')).filter(visible);
+  }
+  function focusFirst(){
+    var el=document.getElementById('tvModeBtn')||items()[0];
+    if(el){el.focus();el.scrollIntoView({block:'nearest',inline:'nearest'});}
+  }
+  function center(el){var r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};}
+  function move(dx,dy){
+    var all=items(),a=document.activeElement;
+    if(all.indexOf(a)<0){focusFirst();return;}
+    var ac=center(a),best=null,scoreBest=Infinity;
+    all.forEach(function(el){
+      if(el===a)return;
+      var p=center(el),vx=p.x-ac.x,vy=p.y-ac.y;
+      if(dx&&vx*dx<=6)return;
+      if(dy&&vy*dy<=6)return;
+      var primary=dx?Math.abs(vx):Math.abs(vy),secondary=dx?Math.abs(vy):Math.abs(vx);
+      var score=primary+secondary*1.7;
+      var cross=dx?Math.max(a.offsetHeight*2,90):Math.max(a.offsetWidth*2,180);
+      if(secondary>cross)score+=secondary*3;
+      if(score<scoreBest){scoreBest=score;best=el;}
+    });
+    if(best){best.focus();best.scrollIntoView({block:'nearest',inline:'nearest'});}
+  }
+  function activate(){
+    var el=document.activeElement;if(!el)return;
+    if(el.tagName==='BUTTON'||el.tagName==='A'){el.click();return;}
+    if(el.classList.contains('tv-card')){var b=el.querySelector('.tv-play');if(b)b.click();}
+  }
+  function back(){
+    try{if(document.fullscreenElement&&document.exitFullscreen){document.exitFullscreen();return;}if(document.webkitFullscreenElement&&document.webkitExitFullscreen){document.webkitExitFullscreen();return;}}catch(e){}
+    var box=document.getElementById('tvPlayerBox');
+    if(box&&getComputedStyle(box).display!=='none'&&typeof stopTV==='function'){stopTV();return;}
+    var tvBtn=document.getElementById('tvModeBtn'),radioBtn=document.getElementById('radioModeBtn');
+    if(tvBtn&&radioBtn&&tvBtn.classList.contains('active')&&typeof setMode==='function'){setMode('radio');radioBtn.focus();}
+  }
+  document.addEventListener('keydown',function(e){
+    var k=e.key,code=e.keyCode||e.which,t=e.target;
+    var editing=t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName);
+    if(editing){if(code===461||code===10009||k==='Escape'||k==='GoBack'){e.preventDefault();back();}return;}
+    if(code===37||k==='ArrowLeft'){e.preventDefault();move(-1,0);}
+    else if(code===38||k==='ArrowUp'){e.preventDefault();move(0,-1);}
+    else if(code===39||k==='ArrowRight'){e.preventDefault();move(1,0);}
+    else if(code===40||k==='ArrowDown'){e.preventDefault();move(0,1);}
+    else if(code===13||k==='Enter'||k==='NumpadEnter'){e.preventDefault();activate();}
+    else if(code===461||code===10009||code===27||k==='GoBack'){e.preventDefault();back();}
+    else if(k==='MediaPlayPause'&&typeof toggleTVPlay==='function'){e.preventDefault();toggleTVPlay();}
+  },true);
+
+  window.addEventListener('load',function(){setTimeout(focusFirst,350);});
 })();
 </script>
 </body>
