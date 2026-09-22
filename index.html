@@ -2634,7 +2634,7 @@ body.jon-ad-visible{padding-bottom:85px}
     liveBox.setAttribute('aria-label','Advertisement');
     liveBox.innerHTML=list.map((x,i)=>{
       const media=x.video||x.videoUrl||x.mediaUrl||'';
-      const image=x.image||x.imageUrl||x.banner||'';
+      const image=window.jonPhotoUrl(x.image||x.imageUrl||x.photoUrl||x.photo||x.banner||'');
       let mediaHTML='';
       if(media){
         mediaHTML='<video class="jon-ad-media" controls playsinline preload="metadata" src="'+safe(media)+'"></video>';
@@ -2930,18 +2930,32 @@ window.jonStreamRecordWatched=name=>{if(!name)return;const a=get(recentKey,[]).f
 }
 
 </style>
+<script id="jonPhotoUrlHelper">
+window.jonPhotoUrl=function(value){
+ if(value==null)return "";
+ let u=String(value).trim();
+ if(!u)return "";
+ try{u=decodeURIComponent(u)}catch(_){}
+ if(u.startsWith("//"))u="https:"+u;
+ if(/^http:\/\//i.test(u))u=u.replace(/^http:\/\//i,"https://");
+ return u;
+};
+</script>
 <script id="jonProfessionalMediaJS">
 (function(){
  let list=[],idx=0,timer=null;
- const images={
-  radio:document.querySelector('[data-jon-hero-img="radio"]'),
-  tv:document.querySelector('[data-jon-hero-img="tv"]')
- };
- function ok(u){try{let x=new URL(u);return x.protocol==="http:"||x.protocol==="https:"}catch(e){return false}}
+ const images={radio:document.querySelector('[data-jon-hero-img="radio"]'),tv:document.querySelector('[data-jon-hero-img="tv"]')};
+ function photoUrl(value){return window.jonPhotoUrl(value)}
+ function ok(u){
+  const v=photoUrl(u);
+  if(/^data:image\//i.test(v))return true;
+  try{const x=new URL(v);return x.protocol==="http:"||x.protocol==="https:"}catch(e){return false}
+ }
  function setList(remote){
-  const a=Array.isArray(remote?.backgrounds)?remote.backgrounds
-    .filter(x=>x&&x.enabled!==false&&ok(x.url))
-    .map(x=>({url:String(x.url),seconds:Math.max(1,Number(x.seconds)||5)})):[];
+  const raw=Array.isArray(remote?.backgrounds)?remote.backgrounds:[];
+  const a=raw.filter(x=>x&&x.enabled!==false)
+   .map(x=>({url:photoUrl(x.url||x.photoUrl||x.photo||x.imageUrl||x.image||x.banner),seconds:Math.max(1,Number(x.seconds)||5)}))
+   .filter(x=>ok(x.url));
   if(JSON.stringify(a)!==JSON.stringify(list)){list=a;idx=0;clearTimeout(timer);show()}
  }
  function show(){
@@ -2950,13 +2964,11 @@ window.jonStreamRecordWatched=name=>{if(!name)return;const a=get(recentKey,[]).f
   pre.onload=function(){
    const targets=Object.values(images).filter(Boolean);
    targets.forEach(im=>im.classList.remove("show"));
-   setTimeout(()=>{targets.forEach(im=>{im.src=item.url;im.classList.add("show")})},450)
+   setTimeout(()=>targets.forEach(im=>{im.src=item.url;im.classList.add("show")}),450);
    clearTimeout(timer);
    if(list.length>1)timer=setTimeout(()=>{idx=(idx+1)%list.length;show()},item.seconds*1000);
   };
-  pre.onerror=function(){
-   if(list.length>1){idx=(idx+1)%list.length;show()}
-  };
+  pre.onerror=function(){if(list.length>1){idx=(idx+1)%list.length;show()}};
   pre.src=item.url;
  }
  window.addEventListener("jon-firebase-data",e=>setList(e.detail));
