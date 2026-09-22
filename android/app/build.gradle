@@ -23,7 +23,7 @@ android {
 }
 
 def copyJonLogo = tasks.register("copyJonLogo", Copy) {
-    from(rootProject.projectDir.parentFile.toPath().resolve("jon-stream-512.png").toFile())
+    from(rootProject.projectDir.parentFile.toPath().resolve("logo.png").toFile())
     into(layout.projectDirectory.dir("src/main/res/drawable"))
     rename { "jon_logo.png" }
 }
