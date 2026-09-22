@@ -12,6 +12,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
   import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+  import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC5uNWNp9KbcepO36VQCx8gfbyPmZW4fxM",
@@ -28,6 +29,8 @@
     try { getAnalytics(app); } catch (_) {}
 
     const db = getFirestore(app);
+    const storage = getStorage(app);
+    window.__JON_RESOLVE_MEDIA_URL = async function(value){ const v=String(value??"").trim(); if(!v)return ""; if(/^https?:\/\//i.test(v)||/^data:/i.test(v)||/^blob:/i.test(v))return v; try{return await getDownloadURL(storageRef(storage,v.startsWith("gs://")?v:v.replace(/^\/+/,"")))}catch(e){console.warn("JON media URL could not be resolved:",v,e);return "";} };
     const ref = doc(db, "jonStream", "appData");
     onSnapshot(ref, (snap) => {
       window.__JON_FIREBASE_DATA = snap.exists() ? snap.data() : null;
@@ -572,6 +575,7 @@ audio,video{
 
 </style>
 
+<style id="jonGithubMediaFix">.jonMediaHeroImage{visibility:visible!important}.jonMediaHeroImage.show{visibility:visible!important;opacity:1!important}.jon-ad-media{visibility:visible!important}</style>
 <style id="jonLandscapeReadMoreFix">
 /* JON additive fix: keep Read More / Read Less usable in landscape. */
 @media (orientation:landscape){
@@ -2603,6 +2607,18 @@ body.jon-ad-visible{padding-bottom:85px}
     hideAdFor15Seconds();
   }, true);
 
+  async function resolveMediaValue(x,keys){
+    if(!x)return ""; const vals=[];
+    for(const k of keys){const v=x?.[k];if(typeof v==="string"&&v.trim())vals.push(v.trim());}
+    if(x?.media&&typeof x.media==="object")for(const k of ["url","downloadURL","downloadUrl","image","imageUrl","video","videoUrl","src"]){const v=x.media?.[k];if(typeof v==="string"&&v.trim())vals.push(v.trim());}
+    for(const v of vals){if(/^https?:\/\//i.test(v)||/^data:/i.test(v)||/^blob:/i.test(v))return v;if(typeof window.__JON_RESOLVE_MEDIA_URL==="function"){const u=await window.__JON_RESOLVE_MEDIA_URL(v);if(u)return u;}} return "";
+  }
+  async function resolveAndRenderAds(ads){
+    if(!Array.isArray(ads)){renderAds(ads);return;}
+    const resolved=await Promise.all(ads.map(async x=>{if(!x)return x;const y={...x};y.video=await resolveMediaValue(x,["video","videoUrl","mediaUrl","videoURL","videoSrc","videoPath","mediaPath"]);y.image=await resolveMediaValue(x,["image","imageUrl","imageURL","banner","bannerUrl","bannerURL","photo","photoUrl","photoURL","imagePath","bannerPath","mediaUrl"]);return y;}));
+    renderAds(resolved);
+  }
+
   function renderAds(ads){
     /* Do not cancel the 15-second X-close timer while the ad is hidden. */
     if(!(window.jonAdClosedUntil && Date.now() < window.jonAdClosedUntil)){
@@ -2742,7 +2758,7 @@ body.jon-ad-visible{padding-bottom:85px}
 
   function syncFirebaseData(remote){
     if(!remote) return;
-    renderAds(remote.ads);
+    resolveAndRenderAds(remote.ads);
     renderNotifications(remote.notifications);
 
     /* Safe additive TV/Radio sync: Firestore items are merged into the original
@@ -2938,10 +2954,9 @@ window.jonStreamRecordWatched=name=>{if(!name)return;const a=get(recentKey,[]).f
   tv:document.querySelector('[data-jon-hero-img="tv"]')
  };
  function ok(u){try{let x=new URL(u);return x.protocol==="http:"||x.protocol==="https:"}catch(e){return false}}
- function setList(remote){
-  const a=Array.isArray(remote?.backgrounds)?remote.backgrounds
-    .filter(x=>x&&x.enabled!==false&&ok(x.url))
-    .map(x=>({url:String(x.url),seconds:Math.max(1,Number(x.seconds)||5)})):[];
+ async function setList(remote){
+  const raw=Array.isArray(remote?.backgrounds)?remote.backgrounds.filter(x=>x&&x.enabled!==false):[]; const a=[];
+  for(const x of raw){const candidates=[x.url,x.image,x.imageUrl,x.imageURL,x.background,x.backgroundUrl,x.backgroundURL,x.photo,x.photoUrl,x.photoURL,x.src,x.downloadURL,x.downloadUrl,x.path,x.storagePath];let u="";for(const v of candidates){if(typeof v!=="string"||!v.trim())continue;if(ok(v.trim())||/^data:/i.test(v.trim())){u=v.trim();break;}if(typeof window.__JON_RESOLVE_MEDIA_URL==="function"){u=await window.__JON_RESOLVE_MEDIA_URL(v.trim());if(u)break;}}if(u)a.push({url:u,seconds:Math.max(1,Number(x.seconds||x.duration||x.durationSeconds)||5)});}
   if(JSON.stringify(a)!==JSON.stringify(list)){list=a;idx=0;clearTimeout(timer);show()}
  }
  function show(){
