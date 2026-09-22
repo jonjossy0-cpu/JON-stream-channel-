@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+android {
+    namespace 'com.jonstream.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.jonstream.app'
+        minSdk 23
+        targetSdk 35
+        versionCode 6
+        versionName '6.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+def copyJonLogo = tasks.register("copyJonLogo", Copy) {
+    from(rootProject.projectDir.parentFile.toPath().resolve("jon-stream-512.png").toFile())
+    into(layout.projectDirectory.dir("src/main/res/drawable"))
+    rename { "jon_logo.png" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copyJonLogo)
+}
+
+dependencies {
+}
