@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Build;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -28,6 +29,7 @@ public class MainActivity extends Activity {
     private final StringBuilder numberBuffer = new StringBuilder();
     private final Handler handler = new Handler();
     private Runnable commitTask;
+    private boolean pipRequested = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,6 +203,22 @@ public class MainActivity extends Activity {
         if (root != null) root.setKeepScreenOn(true);
         if (webView != null) webView.setKeepScreenOn(true);
         if (customView != null) customView.setKeepScreenOn(true);
+    }
+
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && customView == null && webView != null) {
+            webView.evaluateJavascript("(function(){var v=document.querySelector('video');return !!(v && !v.paused && v.readyState>=2);})()", value -> {
+                if ("true".equals(value)) {
+                    try {
+                        pipRequested = true;
+                        enterPictureInPictureMode(new android.app.PictureInPictureParams.Builder().build());
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 
     @Override public void onBackPressed() {
