@@ -2421,13 +2421,36 @@ function reconnectTV(){
  },10000);
 }
 
-/* TV FULLSCREEN */
-function fullscreenTV(){
- if(tvPlayer.requestFullscreen){
-  tvPlayer.requestFullscreen();
- }else if(tvPlayer.webkitRequestFullscreen){
-  tvPlayer.webkitRequestFullscreen();
+/* TV FULLSCREEN — Telegram Mini App only enhancement */
+async function fullscreenTV(){
+ const isTelegramMiniApp=!!(window.Telegram&&Telegram.WebApp);
+ const v=tvPlayer;
+ if(!v)return;
+
+ if(isTelegramMiniApp){
+  try{Telegram.WebApp.ready?.();}catch(_){}
+  try{Telegram.WebApp.expand?.();}catch(_){}
+  try{if(typeof Telegram.WebApp.requestFullscreen==="function")Telegram.WebApp.requestFullscreen();}catch(_){}
+
+  try{
+   if(v.requestFullscreen) await v.requestFullscreen();
+   else if(v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+   else if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  }catch(_){
+   try{if(v.webkitEnterFullscreen)v.webkitEnterFullscreen();}catch(__){}
+  }
+
+  try{
+   if(screen.orientation?.lock) await screen.orientation.lock("landscape");
+  }catch(_){}
+  return;
  }
+
+ /* Existing browser / Android-app behavior */
+ try{
+  if(v.requestFullscreen) await v.requestFullscreen();
+  else if(v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+ }catch(_){}
 }
 
 
