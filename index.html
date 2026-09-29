@@ -577,6 +577,14 @@ audio,video{
 
 </style>
 
+<style id="jonTVFullscreenFix">
+/* JON TV Full Screen — display-only fix. Keep channel name; remove frame/controls. */
+#tvPlayerBox:fullscreen{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#000!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;overflow:hidden!important}
+#tvPlayerBox:fullscreen .tv-player-title{flex:0 0 auto!important;width:100%!important;margin:0!important;padding:10px 14px!important;background:rgba(0,0,0,.65)!important;color:#fff!important;text-align:left!important;font-size:16px!important;font-weight:800!important;z-index:20!important}
+#tvPlayerBox:fullscreen #tvPlayer{width:100%!important;height:auto!important;flex:1 1 auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border-radius:0!important;object-fit:contain!important;background:#000!important}
+#tvPlayerBox:fullscreen .quality,#tvPlayerBox:fullscreen .tv-controls,#tvPlayerBox:fullscreen .advanced-media-player,#tvPlayerBox:fullscreen .tv-diagnostics,#tvPlayerBox:fullscreen .more-controls-panel,#tvPlayerBox:fullscreen #jonTVRemoteDisplay,#tvPlayerBox:fullscreen #jonTVDisplayShortcut{display:none!important}
+#tvPlayerBox:fullscreen::backdrop{background:#000!important}
+</style>
 <style id="jonGithubMediaFix">.jonMediaHeroImage{visibility:visible!important}.jonMediaHeroImage.show{visibility:visible!important;opacity:1!important}.jon-ad-media{visibility:visible!important}</style>
 <style id="jonLandscapeReadMoreFix">
 /* JON additive fix: keep Read More / Read Less usable in landscape. */
@@ -2327,7 +2335,7 @@ function nextTV(){if(!filteredTV.length)return;let n=currentTVIndex<0?0:currentT
 function previousTV(){if(!filteredTV.length)return;let n=currentTVIndex<=0?filteredTV.length-1:currentTVIndex-1;const c=filteredTV[n];playTVStream(c.url,c.name,n)}
 function toggleTVMute(){tvPlayer.muted=!tvPlayer.muted}
 function stopTV(){clearTimeout(tvReconnectTimer);currentTV=null;tvSourceList=[];destroyTVEngine();tvPlayer.pause();tvPlayer.removeAttribute("src");tvPlayer.load();document.getElementById("tvPlayerTitle").innerHTML="📺 TV stopped";tvStatus("⚪ Stopped");tvDiag("diagSource","None");tvDiag("diagBuffer","0s")}
-function fullscreenTV(){const box=document.getElementById("tvPlayerBox");if(box.requestFullscreen)box.requestFullscreen().catch(()=>{});else if(tvPlayer.requestFullscreen)tvPlayer.requestFullscreen();else if(tvPlayer.webkitRequestFullscreen)tvPlayer.webkitRequestFullscreen()}
+function fullscreenTV(){const box=document.getElementById("tvPlayerBox");if(!box)return;if(document.fullscreenElement===box||document.webkitFullscreenElement===box){if(document.exitFullscreen)document.exitFullscreen().catch(()=>{});else if(document.webkitExitFullscreen)document.webkitExitFullscreen();return}if(box.requestFullscreen)box.requestFullscreen({navigationUI:"hide"}).catch(()=>{});else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();else if(tvPlayer.requestFullscreen)tvPlayer.requestFullscreen().catch(()=>{});else if(tvPlayer.webkitRequestFullscreen)tvPlayer.webkitRequestFullscreen()}
 
 /* TV QUALITY */
 function updateQuality(){
