@@ -2898,7 +2898,9 @@ body.jon-ad-visible{padding-bottom:85px}
       const incoming=remote.tv.filter(x=>x&&x.enabled!==false&&x.name&&x.url).map(x=>({name:x.name,url:x.url,logo:x.logo||'',country:x.country||'',group:x.category||x.group||'TV Channel',id:x.id,backupUrl:x.backupUrl||'',backupUrls:Array.isArray(x.backupUrls)?x.backupUrls:[],backupStreams:Array.isArray(x.backupStreams)?x.backupStreams:[]}));
       const merged=[...tvChannels,...incoming];
       const seen=new Set();
-      tvChannels=merged.filter(x=>{const k=String(x.url||'').trim(); if(!k||seen.has(k)) return false; seen.add(k); return true;});
+      /* Prefer stable Firebase IDs for de-duplication too: a refreshed stream URL
+         must update the existing channel rather than create a second copy. */
+      tvChannels=merged.filter(x=>{const k=getTVOrderIdentity(x); if(!k||seen.has(k)) return false; seen.add(k); return true;});
       /* Firebase may arrive after the local order was restored. Always apply
          the saved order again so moved channels keep their positions. */
       reapplySavedTVOrder();
