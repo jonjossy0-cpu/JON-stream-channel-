@@ -1727,8 +1727,16 @@ function getSavedTVOrder(){
  return [];
 }
 
+/* Prefer Firebase's stable channel ID; fall back to URL for built-in/legacy channels. */
+function getTVOrderIdentity(channel){
+ const id=String(channel&&channel.id!=null?channel.id:"").trim();
+ if(id)return "id:"+id;
+ const url=String(channel&&channel.url||"").trim();
+ return url?"url:"+url:"";
+}
+
 function saveTVOrder(){
- const order=JSON.stringify(tvChannels.map(ch=>String(ch.url||"")));
+ const order=JSON.stringify(tvChannels.map(getTVOrderIdentity).filter(Boolean));
  try{localStorage.setItem(JON_TV_ORDER_KEY,order)}catch(_){}
  try{document.cookie=JON_TV_ORDER_COOKIE+"="+encodeURIComponent(order)+"; Max-Age=31536000; Path=/; SameSite=Lax"}catch(_){}
 }
@@ -1748,12 +1756,24 @@ window.addEventListener("pagehide",persistTVOrderBeforeExit);
 function applySavedTVOrder(list){
  const order=getSavedTVOrder();
  if(!order.length)return list.slice();
- const pos=new Map(order.map((url,i)=>[url,i]));
- return list.slice().sort((a,b)=>{
-  const pa=pos.has(String(a.url||""))?pos.get(String(a.url||"")):999999999;
-  const pb=pos.has(String(b.url||""))?pos.get(String(b.url||"")):999999999;
-  return pa-pb;
+ const pos=new Map();
+ order.forEach((value,i)=>{
+  const key=String(value||"").trim();
+  if(!key)return;
+  pos.set(key,i);
+  /* Read old saved URL-only order values so existing users keep their layout. */
+  if(!key.startsWith("id:")&&!key.startsWith("url:"))pos.set("url:"+key,i);
  });
+ const position=(channel)=>{
+  const identity=getTVOrderIdentity(channel);
+  if(pos.has(identity))return pos.get(identity);
+  /* Migrate old URL order entries when a Firebase channel now has a stable ID. */
+  const urlKey="url:"+String(channel&&channel.url||"").trim();
+  return pos.has(urlKey)?pos.get(urlKey):Number.MAX_SAFE_INTEGER;
+ };
+ return list.map((channel,index)=>({channel,index,position:position(channel)}))
+  .sort((a,b)=>a.position-b.position||a.index-b.index)
+  .map(item=>item.channel);
 }
 
 function showTVSavedMessage(){
@@ -1771,7 +1791,8 @@ function showTVSavedMessage(){
 }
 
 function moveTVChannelToNumber(channel,targetNumber){
- const current=tvChannels.findIndex(ch=>ch.url===channel.url);
+ const identity=getTVOrderIdentity(channel);
+ const current=tvChannels.findIndex(ch=>identity&&getTVOrderIdentity(ch)===identity || (!identity&&ch.url===channel.url));
  if(current<0)return;
  const n=parseInt(targetNumber,10);
  if(!Number.isInteger(n)||n<1||n>tvChannels.length){
